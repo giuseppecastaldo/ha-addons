@@ -15,7 +15,7 @@ _Write your Whatsapp message from Home Assistant_
 [armhf-shield]: https://img.shields.io/badge/armhf-yes-green.svg
 [armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
 [i386-shield]: https://img.shields.io/badge/i386-yes-green.svg
-[logo]: ./logo.png
+[logo]: [./logo.png](https://github.com/giuseppecastaldo/ha-addons/blob/main/whatsapp_addon/logo.png?raw=true)
 
 
 ## Installation guide
