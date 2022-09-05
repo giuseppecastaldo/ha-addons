@@ -1,0 +1,22 @@
+{
+  "name": "whatsapp_api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./index.js"
+  },
+  "author": "Giuseppe Castaldo",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.20.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.1",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.17.1",
+    "axios": "^0.27.2",
+    "log4js": "^4.0.2",
+    "qr-image": "^3.2.0"
+  }
+}

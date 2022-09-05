@@ -1,0 +1,16 @@
+name: "Whatsapp"
+description: "Whatsapp addon for send message from Home Assistant"
+version: "1.0.0"
+slug: "whatsapp_addon"
+init: false
+homeassistant_api: true
+hassio_api: true
+watchdog: http://[HOST]:[PORT]/state
+arch:
+  - amd64
+  - armv7
+  - aarch64
+  - armhf
+  - i386
+map:
+  - config:rw
