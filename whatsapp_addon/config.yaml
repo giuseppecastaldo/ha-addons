@@ -1,5 +1,6 @@
 name: "Whatsapp"
 description: "Whatsapp addon for send message from Home Assistant"
+url: "https://github.com/giuseppecastaldo/ha-addons/tree/main/whatsapp_addon"
 version: "1.0.0"
 slug: "whatsapp_addon"
 homeassistant_api: true
