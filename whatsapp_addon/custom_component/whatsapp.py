@@ -1,7 +1,7 @@
 import requests
 from url_normalize import url_normalize
 
-HOST = 'http://local-whatsapp-addon:3000/'
+HOST = 'http://f4fdf59d-whatsapp-addon:3000/'
 
 class Whatsapp:
     def send_message(self, data):
