@@ -15,13 +15,13 @@ _Write your Whatsapp message from Home Assistant_
 [armhf-shield]: https://img.shields.io/badge/armhf-yes-green.svg
 [armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
 [i386-shield]: https://img.shields.io/badge/i386-yes-green.svg
-[logo]: [./logo.png](https://github.com/giuseppecastaldo/ha-addons/blob/main/whatsapp_addon/logo.png?raw=true)
+[logo]: https://github.com/giuseppecastaldo/ha-addons/blob/main/whatsapp_addon/logo.png?raw=true
 
 
 ## Installation guide
 Install add-on from this repository:
 ```
-<link>
+https://github.com/giuseppecastaldo/ha-addons
 ```
 Start the add-on and in a few seconds you will see a persistent notification with QRCode, please scan this one with Whatsapp Mobile app.
 
