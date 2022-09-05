@@ -12,4 +12,3 @@ arch:
 init: false
 map:
   - config:rw
-image: "giuseppecastaldo/{arch}-whatsapp-addon"
