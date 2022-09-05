@@ -11,5 +11,5 @@ arch:
   - i386
 init: false
 map:
-  - share:rw
+  - config:rw
 image: "giuseppecastaldo/{arch}-whatsapp-addon"
