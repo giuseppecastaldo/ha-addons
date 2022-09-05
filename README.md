@@ -24,7 +24,7 @@ _Write your Whatsapp message from Home Assistant_
 ## Installation guide
 Install add-on from this repository:
 ```
-<link>
+https://github.com/giuseppecastaldo/ha-addons
 ```
 Start the add-on and in a few seconds you will see a persistent notification with QRCode, please scan this one with Whatsapp Mobile app.
 
