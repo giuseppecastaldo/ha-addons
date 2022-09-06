@@ -17,16 +17,26 @@ _Write your Whatsapp message from Home Assistant_
 [i386-shield]: https://img.shields.io/badge/i386-yes-green.svg
 [logo]: https://github.com/giuseppecastaldo/ha-addons/blob/main/whatsapp_addon/logo.png?raw=true
 
+A WhatsApp API client that connects through the WhatsApp Web browser app
 
-## Installation guide
+It uses Puppeteer and [whatsapp-web.js](https://wwebjs.dev/) to run a real instance of Whatsapp Web to avoid getting blocked.
+
+**NOTE:** I can't guarantee you will not be blocked by using this method, although it has worked for me. WhatsApp does not allow bots or unofficial clients on their platform, so this shouldn't be considered totally safe.
+
+# Installation guide
+
 Install add-on from this repository:
+
 ```
 https://github.com/giuseppecastaldo/ha-addons
 ```
+
 Start the add-on and in a few seconds you will see a persistent notification with QRCode, please scan this one with Whatsapp Mobile app.
 
 After add-on installation restart Home Assistant and then copy the following code in _configuration.yaml_
+
 ```yaml
 whatsapp:
 ```
+
 Then restart Home Assistant. If all went well you will se a _whatsapp.send_message_ service.

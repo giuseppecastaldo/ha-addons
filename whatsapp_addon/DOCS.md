@@ -3,7 +3,9 @@
 ## How to use
 
 ### How to get a User ID
+
 The user id is made from three parts:
+
 - Country code (Example 39 (Italy))
 - User's number
 - And a static part: @c.us
@@ -22,6 +24,7 @@ data:
 ```
 
 ### How to send a media
+
 ```yaml
 service: whatsapp.send_message
 data:
@@ -29,9 +32,12 @@ data:
   body:
     type: media_url
     url: https://dummyimage.com/600x400/000/fff
+    options:
+      caption: Image or video caption
 ```
 
 ### How to send a location
+
 ```yaml
 service: whatsapp.send_message
 data:
@@ -49,40 +55,56 @@ data:
 
 ```yaml
 - alias: Ping Pong
-  description: ''
+  description: ""
   trigger:
-  - platform: event
-    event_type: new-whatsapp-message
+    - platform: event
+      event_type: new_whatsapp_message
   condition:
-  - condition: template
-    value_template: '{{ trigger.event.data.body == ''!ping'' }}'
+    - condition: template
+      value_template: "{{ trigger.event.data.body == '!ping' }}"
   action:
-  - service: whatsapp.send_message
-    data:
-      to: '{{ trigger.event.data.from }}'
-      body:
-        type: text
-        text: pong
+    - service: whatsapp.send_message
+      data:
+        to: "{{ trigger.event.data.from }}"
+        body:
+          type: text
+          text: pong
   mode: single
-
 ```
 
 ```yaml
 - alias: Arrive at home
-  description: ''
+  description: ""
   trigger:
-  - platform: device
-    domain: device_tracker
-    entity_id: device_tracker.iphone_13_pro
-    type: leaves
-    zone: zone.home
+    - platform: device
+      domain: device_tracker
+      entity_id: device_tracker.iphone_13_pro
+      type: enter
+      zone: zone.home
   condition: []
   action:
-  - service: whatsapp.send_message
-    data:
-      to: 393456789010@c.us
-      body:
-        type: text
-        text: Sono a casa
+    - service: whatsapp.send_message
+      data:
+        to: 393456789010@c.us
+        body:
+          type: text
+          text: I'm at home
+  mode: single
+```
+
+```yaml
+- alias: Driving mode
+  description: ""
+  trigger:
+    - platform: event
+      event_type: new_whatsapp_message
+  condition: []
+  action:
+    - service: whatsapp.send_message
+      data:
+        to: "{{ trigger.event.data.from }}"
+        body:
+          type: text
+          text: Sorry, I'm driving, I will contact you soon
   mode: single
 ```

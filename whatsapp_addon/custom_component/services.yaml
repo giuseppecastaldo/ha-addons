@@ -1,2 +1,14 @@
 send_message:
+  name: Send message
   description: Send a Whatsapp message
+  fields:
+    to:
+      name: Target User ID
+      description: Target User ID
+      required: true
+      example: 391234567890@c.us
+    body:
+      name: Message's body
+      description: Message's body
+      required: true
+      advanced: true

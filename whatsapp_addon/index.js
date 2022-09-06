@@ -24,8 +24,6 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-console.log(process.env.SUPERVISOR_TOKEN);
-
 const wapp = new Client({
   authStrategy: new LocalAuth({
     dataPath: "/data/.wwebjs_auth/",
@@ -84,7 +82,23 @@ wapp.on("ready", () => {
 
     if (message.body.type == "text") {
       wapp
-        .sendMessage(message.to, message.body.text)
+        .sendMessage(message.to, message.body.text, {
+          linkPreview: message.body.link_preview,
+          sendAudioAsVoice: message.body.send_audio_as_voice,
+          sendVideoAsGif: message.body.send_video_as_gif,
+          sendMediaAsSticker: message.body.send_media_as_sticker,
+          sendMediaAsDocument: message.body.send_media_as_document,
+          parseVCards: message.body.parse_vcards,
+          caption: message.body.caption,
+          quotedMessageId: message.body.quoted_message_id,
+          mentions: message.body.mentions,
+          sendSeen: message.body.send_seen,
+          stickerAuthor: message.body.sticker_author,
+          stickerName: message.body.sticker_name,
+          stickerCategories: message.body.sticker_categories,
+          media: message.body.media
+
+        })
         .then(() => {
           res.send("OK");
           logger.info("Text message successfully sended from addon.");
@@ -101,7 +115,23 @@ wapp.on("ready", () => {
       );
 
       wapp
-        .sendMessage(message.to, media)
+        .sendMessage(message.to, media, {
+          linkPreview: message.body.link_preview,
+          sendAudioAsVoice: message.body.send_audio_as_voice,
+          sendVideoAsGif: message.body.send_video_as_gif,
+          sendMediaAsSticker: message.body.send_media_as_sticker,
+          sendMediaAsDocument: message.body.send_media_as_document,
+          parseVCards: message.body.parse_vcards,
+          caption: message.body.caption,
+          quotedMessageId: message.body.quoted_message_id,
+          mentions: message.body.mentions,
+          sendSeen: message.body.send_seen,
+          stickerAuthor: message.body.sticker_author,
+          stickerName: message.body.sticker_name,
+          stickerCategories: message.body.sticker_categories,
+          media: message.body.media
+
+        })
         .then(() => {
           res.send("OK");
           logger.info("Media message successfully sended from addon.");
@@ -113,7 +143,23 @@ wapp.on("ready", () => {
     } else if (message.body.type == "media_url") {
       MessageMedia.fromUrl(message.body.url).then((media) => {
         wapp
-          .sendMessage(message.to, media)
+          .sendMessage(message.to, media, {
+            linkPreview: message.body.link_preview,
+            sendAudioAsVoice: message.body.send_audio_as_voice,
+            sendVideoAsGif: message.body.send_video_as_gif,
+            sendMediaAsSticker: message.body.send_media_as_sticker,
+            sendMediaAsDocument: message.body.send_media_as_document,
+            parseVCards: message.body.parse_vcards,
+            caption: message.body.caption,
+            quotedMessageId: message.body.quoted_message_id,
+            mentions: message.body.mentions,
+            sendSeen: message.body.send_seen,
+            stickerAuthor: message.body.sticker_author,
+            stickerName: message.body.sticker_name,
+            stickerCategories: message.body.sticker_categories,
+            media: message.body.media
+
+          })
           .then(() => {
             res.send("OK");
             logger.info("Media message successfully sended from addon.");
@@ -131,7 +177,23 @@ wapp.on("ready", () => {
       );
 
       wapp
-        .sendMessage(message.to, location)
+        .sendMessage(message.to, location, {
+          linkPreview: message.body.link_preview,
+          sendAudioAsVoice: message.body.send_audio_as_voice,
+          sendVideoAsGif: message.body.send_video_as_gif,
+          sendMediaAsSticker: message.body.send_media_as_sticker,
+          sendMediaAsDocument: message.body.send_media_as_document,
+          parseVCards: message.body.parse_vcards,
+          caption: message.body.caption,
+          quotedMessageId: message.body.quoted_message_id,
+          mentions: message.body.mentions,
+          sendSeen: message.body.send_seen,
+          stickerAuthor: message.body.sticker_author,
+          stickerName: message.body.sticker_name,
+          stickerCategories: message.body.sticker_categories,
+          media: message.body.media
+
+        })
         .then(() => {
           res.send("OK");
           logger.info("Location message successfully sended from addon.");
@@ -155,7 +217,7 @@ wapp.on("ready", () => {
 
 wapp.on("message", (msg) => {
   if (msg.body !== "") {
-    axios.post("http://supervisor/core/api/events/new-whatsapp-message", msg, {
+    axios.post("http://supervisor/core/api/events/new_whatsapp_message", msg, {
       headers: {
         Authorization: `Bearer ${process.env.SUPERVISOR_TOKEN}`,
       },
