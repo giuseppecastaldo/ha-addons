@@ -8,7 +8,6 @@ const execSync = require("child_process").execSync;
 var logger = require("log4js").getLogger();
 logger.level = "info";
 
-const qrcode = require("qrcode-terminal");
 var qrimage = require("qr-image");
 
 const {
@@ -16,6 +15,7 @@ const {
   LocalAuth,
   MessageMedia,
   Location,
+  Buttons
 } = require("whatsapp-web.js");
 
 const app = express();
@@ -37,7 +37,7 @@ const wapp = new Client({
 const port = 3000;
 
 wapp.on("qr", (qr) => {
-  logger.info(
+  logger.debug(
     "Addon require authentication over QRCode, please see your notifications..."
   );
   var code = qrimage.image(qr, { type: "png" });
@@ -101,7 +101,7 @@ wapp.on("ready", () => {
         })
         .then(() => {
           res.send("OK");
-          logger.info("Text message successfully sended from addon.");
+          logger.debug("Text message successfully sended from addon.");
         })
         .catch((error) => {
           res.send("KO");
@@ -134,7 +134,7 @@ wapp.on("ready", () => {
         })
         .then(() => {
           res.send("OK");
-          logger.info("Media message successfully sended from addon.");
+          logger.debug("Media message successfully sended from addon.");
         })
         .catch((error) => {
           res.send("KO");
@@ -162,7 +162,7 @@ wapp.on("ready", () => {
           })
           .then(() => {
             res.send("OK");
-            logger.info("Media message successfully sended from addon.");
+            logger.debug("Media message successfully sended from addon.");
           })
           .catch((error) => {
             res.send("KO");
@@ -196,7 +196,42 @@ wapp.on("ready", () => {
         })
         .then(() => {
           res.send("OK");
-          logger.info("Location message successfully sended from addon.");
+          logger.debug("Location message successfully sended from addon.");
+        })
+        .catch((error) => {
+          res.send("NOK");
+          logger.error(error);
+        });
+    } else if (message.body.type == "buttons") {
+      logger.debug(JSON.stringify(message))
+      const buttons = new Buttons(
+        message.body.buttons.body,
+        message.body.buttons.buttons,
+        message.body.buttons.title,
+        message.body.buttons.footer
+      )
+
+      wapp
+        .sendMessage(message.to, buttons, {
+          linkPreview: message.body.link_preview,
+          sendAudioAsVoice: message.body.send_audio_as_voice,
+          sendVideoAsGif: message.body.send_video_as_gif,
+          sendMediaAsSticker: message.body.send_media_as_sticker,
+          sendMediaAsDocument: message.body.send_media_as_document,
+          parseVCards: message.body.parse_vcards,
+          caption: message.body.caption,
+          quotedMessageId: message.body.quoted_message_id,
+          mentions: message.body.mentions,
+          sendSeen: message.body.send_seen,
+          stickerAuthor: message.body.sticker_author,
+          stickerName: message.body.sticker_name,
+          stickerCategories: message.body.sticker_categories,
+          media: message.body.media
+
+        })
+        .then(() => {
+          res.send("OK");
+          logger.debug("Buttons message successfully sended from addon.");
         })
         .catch((error) => {
           res.send("NOK");
@@ -208,9 +243,18 @@ wapp.on("ready", () => {
     }
   });
 
+  app.post("/setStatus", (req, res) => {
+    const status = req.body.status
+
+    wapp.setStatus(status).then(() => {
+      res.send('OK')
+    })
+  })
+
   app.get('/state', (req, res) => {
     wapp.getState().then((state) => {
       res.send(state)
+      logger.debug("Watchdog request.")
     })
   })
 });
@@ -222,13 +266,29 @@ wapp.on("message", (msg) => {
         Authorization: `Bearer ${process.env.SUPERVISOR_TOKEN}`,
       },
     });
-    logger.info("New message event fired from addon.");
+    logger.debug("New message event fired from addon.");
   }
+});
+
+wapp.on("message_revoke_everyone", (after, before) => {
+  axios.post("http://supervisor/core/api/events/whatsapp_message_revoke_everyone", { after, before }, {
+    headers: {
+      Authorization: `Bearer ${process.env.SUPERVISOR_TOKEN}`,
+    },
+  });
+  logger.debug("New message revoked event fired from addon.");
+});
+
+wapp.on('disconnected', (reason) => {
+  logger.info('Client was logged out. Reason:', reason);
+  setTimeout(function () {
+    app.close();
+  }, 2000)
 });
 
 // Handling uninstallation or stop
 process.on("SIGTERM", async () => {
-  logger.info("Shutting down Whatsapp addon...");
+  logger.debug("Shutting down Whatsapp addon...");
   execSync("./finish.sh", { encoding: "utf-8" });
   await wapp.destroy();
   process.exit(0);

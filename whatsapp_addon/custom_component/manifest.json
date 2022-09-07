@@ -7,5 +7,5 @@
     "url-normalize==1.4.3"
   ],
   "iot_class": "local_polling",
-  "version": "1.0.1"
+  "version": "1.0.2"
 }

@@ -2,7 +2,7 @@
 
 _Write your Whatsapp message from Home Assistant_
 
-![Logo][logo]
+<img src="https://github.com/giuseppecastaldo/ha-addons/blob/main/whatsapp_addon/logo.png?raw=true" width="400"/>
 
 ![Supports aarch64 Architecture][aarch64-shield]
 ![Supports amd64 Architecture][amd64-shield]
@@ -15,7 +15,6 @@ _Write your Whatsapp message from Home Assistant_
 [armhf-shield]: https://img.shields.io/badge/armhf-yes-green.svg
 [armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
 [i386-shield]: https://img.shields.io/badge/i386-yes-green.svg
-[logo]: https://github.com/giuseppecastaldo/ha-addons/blob/main/whatsapp_addon/logo.png?raw=true
 
 A WhatsApp API client that connects through the WhatsApp Web browser app
 

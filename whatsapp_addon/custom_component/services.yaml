@@ -12,3 +12,13 @@ send_message:
       description: Message's body
       required: true
       advanced: true
+
+set_status:
+  name: Set status
+  description: Sets the current user's status message
+  fields:
+    status:
+      name: New status message
+      description: New status message
+      required: true
+      example: Available
