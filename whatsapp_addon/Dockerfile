@@ -5,17 +5,11 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 RUN apk add --update npm chromium git
 
-RUN apk add --no-cache \
-    build-base \
-    pango-dev
-
 COPY . /
 RUN chmod a+x /run.sh
 RUN chmod a+x /finish.sh
 
 RUN cd / && npm install
-
-RUN npm install
 RUN npm install github:pedroslopez/whatsapp-web.js#fix-buttons-list
 
 EXPOSE 3000
