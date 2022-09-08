@@ -37,7 +37,7 @@ fs.readFile('data/options.json', function (error, content) {
         clientId: client
       }),
       puppeteer: {
-        executablePath: "/usr/bin/chromium-browser",
+        executablePath: "/usr/bin/chromium",
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       },
     });

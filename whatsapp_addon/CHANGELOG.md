@@ -1,3 +1,7 @@
+## 1.1.1
+
+- Migration from Home Assistant base image to Debian image
+
 ## 1.1.0
 
 - Added the ability to manage multiple whatsapp sessions (re-authentication required)

@@ -3,11 +3,11 @@ FROM $BUILD_FROM
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-RUN apk add --update npm chromium git
-
-RUN apk add --no-cache \
-    build-base \
-    pango-dev
+RUN apt install curl \
+    && curl -sL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt update \
+    && apt install nodejs \
+    && apt install -y chromium git build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
 
 COPY . /
 RUN chmod a+x /run.sh
