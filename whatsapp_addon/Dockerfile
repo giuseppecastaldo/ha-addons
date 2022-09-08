@@ -7,11 +7,7 @@ RUN apk add --update npm chromium git
 
 RUN apk add --no-cache \
     build-base \
-    g++ \
-    cairo-dev \
-    jpeg-dev \
-    pango-dev \
-    giflib-dev
+    pango-dev
 
 COPY . /
 RUN chmod a+x /run.sh
