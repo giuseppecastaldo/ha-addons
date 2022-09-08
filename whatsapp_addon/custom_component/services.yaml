@@ -2,6 +2,11 @@ send_message:
   name: Send message
   description: Send a Whatsapp message
   fields:
+    client_id:
+      name: Client ID
+      description: Which instance of whatsapp should the message come from
+      required: true
+      example: default
     to:
       name: Target User ID
       description: Target User ID
@@ -17,6 +22,11 @@ set_status:
   name: Set status
   description: Sets the current user's status message
   fields:
+    client_id:
+      name: Client ID
+      description: Which instance of whatsapp should be used
+      required: true
+      example: default
     status:
       name: New status message
       description: New status message

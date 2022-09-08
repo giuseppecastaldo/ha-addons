@@ -2,7 +2,13 @@
 
 ## How to use
 
-### How to get a User ID
+### **How to add other Whatsapp sessions**
+
+Go to configuration page in clients input box digit the desired client_id. This one represents an identifier for the session.
+
+**NOTE:** many sessions equate to more RAM and CPU work. Please do not use more sessions than you need.
+
+### **How to get a User ID**
 
 The user id is made from three parts:
 
@@ -12,35 +18,56 @@ The user id is made from three parts:
 
 For example for Italian number _3456789010_ the user id is the following _393456789010@c.us_
 
-### Send a simple text message
+### **Send a simple text message**
 
 ```yaml
 service: whatsapp.send_message
 data:
+  client_id: default # Which instance of whatsapp should the message come from
   to: 393456789010@c.us # User ID
   body:
     type: text
     text: Hello World!
+    options: # Optional
+      send_seen: false # If you don't want to send the user that you have read the message (default true)
 ```
 
-### How to send a media
+### **How to send a media**
 
 ```yaml
 service: whatsapp.send_message
 data:
+  client_id: default # Which instance of whatsapp should the message come from
   to: 393456789010@c.us # User ID
   body:
     type: media_url
-    url: https://dummyimage.com/600x400/000/fff
-    options:
+    url: https://dummyimage.com/600x400/000/fff.png
+    options: # Optional
       caption: Image or video caption
+      send_seen: false
 ```
 
-### How to send a location
+### **How to send audio message**
 
 ```yaml
 service: whatsapp.send_message
 data:
+  client_id: default # Which instance of whatsapp should the message come from
+  to: 393456789010@c.us # User ID
+  body:
+    type: media_url
+    url: https://github.com/giuseppecastaldo/ha-addons/blob/main/whatsapp_addon/examples/hello_world.mp3?raw=true
+    options: # Optional
+      send_seen: true
+      send_audio_as_voice: true
+```
+
+### **How to send a location**
+
+```yaml
+service: whatsapp.send_message
+data:
+  client_id: default # Which instance of whatsapp should the message come from
   to: 393456789010@c.us # User ID
   body:
     type: location
@@ -49,11 +76,12 @@ data:
     description: New York City
 ```
 
-### How to send buttons
+### **How to send buttons (FIXED)**
 
 ```yaml
 service: whatsapp.send_message
 data:
+  client_id: default # Which instance of whatsapp should the message come from
   to: 393456789010@c.us # User ID
   body:
     type: buttons
@@ -79,7 +107,7 @@ data:
 
 ---
 
-## Sample automations
+## **Sample automations**
 
 ```yaml
 - alias: Ping Pong
@@ -93,6 +121,7 @@ data:
   action:
     - service: whatsapp.send_message
       data:
+        client_id: "{{ trigger.event.data.client_id }}" # Which instance of whatsapp should the message come from
         to: "{{ trigger.event.data.from }}"
         body:
           type: text
@@ -113,6 +142,7 @@ data:
   action:
     - service: whatsapp.send_message
       data:
+        client_id: default # Which instance of whatsapp should the message come from
         to: 393456789010@c.us
         body:
           type: text
@@ -130,6 +160,7 @@ data:
   action:
     - service: whatsapp.send_message
       data:
+        client_id: default # Which instance of whatsapp should the message come from
         to: "{{ trigger.event.data.from }}"
         body:
           type: text
@@ -147,6 +178,7 @@ data:
   action:
     - service: whatsapp.send_message
       data:
+        client_id: default # Which instance of whatsapp should the message come from
         to: "{{ trigger.event.data.before.from }}"
         body:
           type: text
