@@ -210,6 +210,8 @@ data:
         to: "{{ trigger.event.data.key.remoteJid }}"
         body:
           text: Sorry, I'm driving, I will contact you soon
+        options:
+          quoted: "{{ trigger.event.data }}" # Quote message
   mode: single
 ```
 
