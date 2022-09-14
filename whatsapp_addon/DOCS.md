@@ -206,7 +206,7 @@ data:
   action:
     - service: whatsapp.send_message
       data:
-        clientId: default # Which instance of whatsapp should the message come from
+        clientId: "{{ trigger.event.data.clientId }}" # Which instance of whatsapp should the message come from
         to: "{{ trigger.event.data.key.remoteJid }}"
         body:
           text: Sorry, I'm driving, I will contact you soon
