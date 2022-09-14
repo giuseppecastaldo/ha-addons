@@ -212,3 +212,24 @@ data:
           text: Sorry, I'm driving, I will contact you soon
   mode: single
 ```
+
+## Message reaction
+
+```yaml
+- alias: React to message
+  description: ""
+  trigger:
+    - platform: event
+      event_type: new_whatsapp_message
+  condition: []
+  action:
+    - service: whatsapp.send_message
+      data:
+        clientId: "{{ trigger.event.data.clientId }}"
+        to: "{{ trigger.event.data.key.remoteJid }}"
+        body:
+          react:
+            text: "👍🏻" # Use an empty string to remove the reaction
+            key: "{{ trigger.event.data.key }}"
+  mode: single
+```
