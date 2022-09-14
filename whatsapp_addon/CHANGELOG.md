@@ -1,3 +1,15 @@
+## 1.2.0
+
+- **Changed radically command and events. Please refer to doc and developer tools for change your automations.**
+- **Performance boost! (Required re-authentication)**
+- Bug fixed on send location.
+- Bug fixed on send mulitple buttons.
+
+## 1.1.2
+
+- Bug fixed.
+- Performance improvements.
+
 ## 1.1.1
 
 - Migration from Home Assistant base image to Debian image
