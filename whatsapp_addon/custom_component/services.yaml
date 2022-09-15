@@ -11,7 +11,7 @@ send_message:
       name: Target User ID
       description: Target User ID
       required: true
-      example: 391234567890@c.us
+      example: 391234567890@s.whatsapp.net
     body:
       name: Message's body
       description: Message's body
@@ -32,3 +32,46 @@ set_status:
       description: New status message
       required: true
       example: Available
+
+presence_subscribe:
+  name: Presence subscribe
+  description: Subscribe to user presence update like online, offline, typing, etc...
+  fields:
+    clientId:
+      name: Client ID
+      description: Which instance of whatsapp should be used
+      required: true
+      example: default
+    userId:
+      name: Target User ID
+      description: Target User ID
+      required: true
+      example: 391234567890@s.whatsapp.net
+
+send_presence_update:
+  name: Send presence update
+  description: Send presence update like online, offline, typing, etc...
+  fields:
+    clientId:
+      name: Client ID
+      description: Which instance of whatsapp should be used
+      required: true
+      example: default
+    type:
+      name: Presence type
+      description: Presence type
+      required: true
+      example: composing
+      selector:
+        select:
+          options:
+            - "unavailable"
+            - "available"
+            - "composing"
+            - "recording"
+            - "paused"
+    to:
+      name: Target User ID
+      description: Target User ID
+      required: false
+      example: 391234567890@s.whatsapp.net

@@ -1,3 +1,9 @@
+## 1.2.1
+
+- Fixed bug that did not allow the reception of push notifications on other devices.
+- Added event presence update.
+- Added two more services like subscribe presence and send presence update.
+
 ## 1.2.0
 
 - **Changed radically command and events. Please refer to doc and developer tools for change your automations.**

@@ -145,17 +145,29 @@ data:
           id: id-like-buttons-message
 ```
 
+### **How to subscribe to presence update**
+
+```yaml
+service: whatsapp.presence_subscribe
+data:
+  clientId: default
+  userId: 391234567890@s.whatsapp.net
+```
+
 ---
 
 ## Events
 
-| Event type           | Description                   |
-| -------------------- | ----------------------------- |
-| new_whatsapp_message | The message that was received |
+| Event type               | Description                           |
+| ------------------------ | ------------------------------------- |
+| new_whatsapp_message     | The message that was received         |
+| whatsapp_presence_update | Presence of contact in a chat updated |
 
 ---
 
 ## **Sample automations**
+
+## Ping Pong
 
 ```yaml
 - alias: Ping Pong
@@ -176,6 +188,8 @@ data:
   mode: single
 ```
 
+## Arrive at home
+
 ```yaml
 - alias: Arrive at home
   description: ""
@@ -195,6 +209,8 @@ data:
           text: Hi, I'm at home
   mode: single
 ```
+
+## Driving mode
 
 ```yaml
 - alias: Driving mode
@@ -233,5 +249,26 @@ data:
           react:
             text: "👍🏻" # Use an empty string to remove the reaction
             key: "{{ trigger.event.data.key }}"
+  mode: single
+```
+
+## Presence notify (SUBSCRIBE FIRST!)
+
+```yaml
+- alias: Nuova automazione
+  description: ""
+  trigger:
+    - platform: event
+      event_type: whatsapp_presence_update
+      event_data: {}
+  condition:
+    - condition: template
+      value_template:
+        "{{ trigger.event.data.presences['391234567890@s.whatsapp.net'].lastKnownPresence
+        == 'available' }}"
+  action:
+    - service: persistent_notification.create
+      data:
+        message: Contact is online!
   mode: single
 ```

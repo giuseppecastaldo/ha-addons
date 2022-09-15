@@ -9,3 +9,9 @@ class Whatsapp:
 
     def set_status(self, data):
         return requests.post(url_normalize(f'{HOST}/setStatus'), json=data).content == 'OK'
+
+    def presence_subscribe(self, data):
+        return requests.post(url_normalize(f'{HOST}/presenceSubscribe'), json=data).content == 'OK'
+
+    def send_presence_update(self, data):
+        return requests.post(url_normalize(f'{HOST}/sendPresenceUpdate'), json=data).content == 'OK'
