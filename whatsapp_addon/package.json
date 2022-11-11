@@ -1,6 +1,6 @@
 {
-  "name": "whatsapp_api",
-  "version": "1.1.2",
+  "name": "whatsapp",
+  "version": "1.2.2",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -10,14 +10,15 @@
   "author": "Giuseppe Castaldo",
   "license": "ISC",
   "dependencies": {
+    "@giuseppecastaldo/baileys": "git+https://github.com/giuseppecastaldo/Baileys",
+    "axios": "^0.27.2",
     "body-parser": "^1.20.0",
     "cors": "^2.8.5",
-    "express": "^4.18.1",
-    "@adiwajshing/baileys": "^4.4.0",
+    "eventemitter2": "^6.4.9",
     "events": "^3.3.0",
-    "pino": "^8.4.2",
-    "axios": "^0.27.2",
+    "express": "^4.18.1",
     "log4js": ">=6.4.0",
+    "pino": "^8.4.2",
     "qr-image": "^3.2.0"
   }
 }

@@ -15,3 +15,6 @@ class Whatsapp:
 
     def send_presence_update(self, data):
         return requests.post(url_normalize(f'{HOST}/sendPresenceUpdate'), json=data).content == 'OK'
+
+    def send_infinity_presence_update(self, data):
+        return requests.post(url_normalize(f'{HOST}/sendInfinityPresenceUpdate'), json=data).content == 'OK'

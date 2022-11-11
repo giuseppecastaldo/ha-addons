@@ -1,3 +1,8 @@
+## 1.2.2
+
+- Added the ability to always be online or offline. This could lead to not receiving notifications on other devices. (**Restard required**)
+- Bug fixed.
+
 ## 1.2.1
 
 - Fixed bug that did not allow the reception of push notifications on other devices.

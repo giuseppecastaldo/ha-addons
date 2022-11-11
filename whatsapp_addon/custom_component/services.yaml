@@ -35,7 +35,7 @@ set_status:
 
 presence_subscribe:
   name: Presence subscribe
-  description: Subscribe to user presence update like online, offline, typing, etc...
+  description: Subscribe to user presence update like online, offline, typing, etc... Please first use send infinity presence update service to always appear online.
   fields:
     clientId:
       name: Client ID
@@ -51,6 +51,34 @@ presence_subscribe:
 send_presence_update:
   name: Send presence update
   description: Send presence update like online, offline, typing, etc...
+  fields:
+    clientId:
+      name: Client ID
+      description: Which instance of whatsapp should be used
+      required: true
+      example: default
+    type:
+      name: Presence type
+      description: Presence type
+      required: true
+      example: composing
+      selector:
+        select:
+          options:
+            - "unavailable"
+            - "available"
+            - "composing"
+            - "recording"
+            - "paused"
+    to:
+      name: Target User ID
+      description: Target User ID
+      required: false
+      example: 391234567890@s.whatsapp.net
+
+send_infinity_presence_update:
+  name: Send infinity presence update
+  description: Send presence update like online, offline, typing, etc... for a long time
   fields:
     clientId:
       name: Client ID
