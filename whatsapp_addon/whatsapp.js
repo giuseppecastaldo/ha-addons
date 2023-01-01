@@ -122,9 +122,14 @@ class WhatsappClient extends EventEmitter {
         if (this.#offline) this.setSendPresenceUpdateInterval('unavailable')
 
         this.#conn.ev.on('messages.upsert', msgs => {
-            const msg = msgs.messages[0]
-            const messageType = Object.keys(msg.message)[0]
-            if (!msg.key.fromMe) this.emit('msg', { type: messageType, ...msgs.messages[0] })
+            const msg = messages[0]
+
+            if (msg.hasOwnProperty('message') && !msg.key.fromMe) {
+                delete msg.message.messageContextInfo;
+                const messageType = Object.keys(msg.message)[0]
+
+                this.emit('msg', { type: messageType, ...msg })
+            }
         })
 
         this.#conn.ev.on("presence.update", (presence) => {
