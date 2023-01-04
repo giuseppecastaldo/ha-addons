@@ -1,3 +1,8 @@
+## 1.2.4
+
+- Bug fixed.
+- Added patch for receive button on iOS (Attention! iOS receive buttons only if app is open (it seems to be a iOS app bug))
+
 ## 1.2.2
 
 - Added the ability to always be online or offline. This could lead to not receiving notifications on other devices. (**Restard required**)

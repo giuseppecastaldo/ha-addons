@@ -1,10 +1,10 @@
 const EventEmitter = require("eventemitter2");
 
-const makeWASocket = require("@giuseppecastaldo/baileys").default;
+const makeWASocket = require("@adiwajshing/baileys").default;
 const {
     DisconnectReason,
-    useSingleFileAuthState
-} = require("@giuseppecastaldo/baileys");
+} = require("@adiwajshing/baileys");
+const useFileAuthState = require("./utils/useFileAuthState");
 
 const MessageType = {
     text: "conversation",
@@ -48,7 +48,7 @@ class WhatsappClient extends EventEmitter {
     connect = async () => {
         if (this.#status.connected) return
 
-        const { state, saveState } = useSingleFileAuthState(this.#path)
+        const { state, saveState } = await useFileAuthState(this.#path)
 
         this.#conn = makeWASocket({
             auth: state,
@@ -56,7 +56,29 @@ class WhatsappClient extends EventEmitter {
             markOnlineOnConnect: !this.#offline,
             browser: ['Ubuntu', 'Desktop', '20.0.04'],
             logger: require("pino")({ level: "silent" }),
-            defaultQueryTimeoutMs: undefined
+            defaultQueryTimeoutMs: undefined,
+            patchMessageBeforeSending: (message) => {
+                const requiresPatch = !!(
+                    message.buttonsMessage
+                    || message.templateMessage
+                    || message.listMessage
+                );
+                if (requiresPatch) {
+                    message = {
+                        viewOnceMessage: {
+                            message: {
+                                messageContextInfo: {
+                                    deviceListMetadataVersion: 2,
+                                    deviceListMetadata: {},
+                                },
+                                ...message,
+                            },
+                        },
+                    };
+                }
+
+                return message;
+            }
         })
 
         this.#conn.ev.on('creds.update', (state) => {
@@ -121,13 +143,12 @@ class WhatsappClient extends EventEmitter {
         this.#refreshInterval = setInterval(() => this.restart(), this.#refreshMs)
         if (this.#offline) this.setSendPresenceUpdateInterval('unavailable')
 
-        this.#conn.ev.on('messages.upsert', msgs => {
+        this.#conn.ev.on('messages.upsert', async ({ messages }) => {
             const msg = messages[0]
 
             if (msg.hasOwnProperty('message') && !msg.key.fromMe) {
                 delete msg.message.messageContextInfo;
                 const messageType = Object.keys(msg.message)[0]
-
                 this.emit('msg', { type: messageType, ...msg })
             }
         })

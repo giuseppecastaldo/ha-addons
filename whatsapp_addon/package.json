@@ -10,7 +10,7 @@
   "author": "Giuseppe Castaldo",
   "license": "ISC",
   "dependencies": {
-    "@giuseppecastaldo/baileys": "git+https://github.com/giuseppecastaldo/Baileys",
+    "@adiwajshing/baileys": "github:adiwajshing/baileys",
     "axios": "^0.27.2",
     "body-parser": "^1.20.0",
     "cors": "^2.8.5",
