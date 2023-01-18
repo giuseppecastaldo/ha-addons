@@ -1,10 +1,10 @@
 const EventEmitter = require("eventemitter2");
 
-const makeWASocket = require("@adiwajshing/baileys").default;
+const makeWASocket = require("./Baileys").default;
 const {
     DisconnectReason,
-} = require("@adiwajshing/baileys");
-const useFileAuthState = require("./utils/useFileAuthState");
+    useSingleFileAuthState
+} = require("./Baileys");
 
 const MessageType = {
     text: "conversation",
@@ -48,7 +48,7 @@ class WhatsappClient extends EventEmitter {
     connect = async () => {
         if (this.#status.connected) return
 
-        const { state, saveState } = await useFileAuthState(this.#path)
+        const { state, saveState } = useSingleFileAuthState(this.#path)
 
         this.#conn = makeWASocket({
             auth: state,
@@ -169,7 +169,7 @@ class WhatsappClient extends EventEmitter {
         const statusCode = lastDisconnect?.error?.output?.statusCode
 
         if (statusCode === DisconnectReason.restartRequired) {
-            this.waitFor('ready').then(() => { 
+            this.waitFor('ready').then(() => {
                 setTimeout(() => {
                     this.restart()
                 }, 5000)

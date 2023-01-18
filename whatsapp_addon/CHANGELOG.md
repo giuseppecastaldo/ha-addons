@@ -1,3 +1,7 @@
+## 1.3.0
+
+- Bug fixed.
+
 ## 1.2.4
 
 - Bug fixed.
