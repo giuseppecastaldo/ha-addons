@@ -1,12 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Boom } from '@hapi/boom'
 import { promisify } from 'util'
-import WebSocket from 'ws'
 import { proto } from '../../WAProto'
-import { DEF_CALLBACK_PREFIX, DEF_TAG_PREFIX, DEFAULT_ORIGIN, INITIAL_PREKEY_COUNT, MIN_PREKEY_COUNT } from '../Defaults'
+import { DEF_CALLBACK_PREFIX, DEF_TAG_PREFIX, INITIAL_PREKEY_COUNT, MIN_PREKEY_COUNT, MOBILE_NOISE_HEADER, NOISE_WA_HEADER } from '../Defaults'
 import { DisconnectReason, SocketConfig } from '../Types'
-import { addTransactionCapability, bindWaitForConnectionUpdate, configureSuccessfulPairing, Curve, generateLoginNode, generateMdTagPrefix, generateRegistrationNode, getCodeFromWSError, getErrorCodeFromStreamError, getNextPreKeysNode, makeNoiseHandler, printQRIfNecessaryListener, promiseTimeout } from '../Utils'
+import { addTransactionCapability, bindWaitForConnectionUpdate, configureSuccessfulPairing, Curve, generateLoginNode, generateMdTagPrefix, generateMobileNode, generateRegistrationNode, getCodeFromWSError, getErrorCodeFromStreamError, getNextPreKeysNode, makeNoiseHandler, printQRIfNecessaryListener, promiseTimeout } from '../Utils'
 import { makeEventBuffer } from '../Utils/event-buffer'
-import { assertNodeErrorFree, BinaryNode, encodeBinaryNode, getBinaryNodeChild, getBinaryNodeChildren, S_WHATSAPP_NET } from '../WABinary'
+import { assertNodeErrorFree, BinaryNode, binaryNodeToString, encodeBinaryNode, getBinaryNodeChild, getBinaryNodeChildren, S_WHATSAPP_NET } from '../WABinary'
+import { MobileSocket } from './mobile-socket'
 
 /**
  * Connects to WA servers and performs:
@@ -14,39 +15,45 @@ import { assertNodeErrorFree, BinaryNode, encodeBinaryNode, getBinaryNodeChild, 
  * - listen to messages and emit events
  * - query phone connection
  */
-export const makeSocket = ({
-	waWebSocketUrl,
-	connectTimeoutMs,
-	logger,
-	agent,
-	keepAliveIntervalMs,
-	version,
-	browser,
-	auth: authState,
-	printQRInTerminal,
-	defaultQueryTimeoutMs,
-	syncFullHistory,
-	transactionOpts,
-	qrTimeout,
-	options,
-}: SocketConfig) => {
-	const ws = new WebSocket(waWebSocketUrl, undefined, {
-		origin: DEFAULT_ORIGIN,
-		headers: options.headers,
-		handshakeTimeout: connectTimeoutMs,
-		timeout: connectTimeoutMs,
-		agent
-	})
-	ws.setMaxListeners(0)
+
+export const makeSocket = (config: SocketConfig) => {
+	const {
+		connectTimeoutMs,
+		logger,
+		keepAliveIntervalMs,
+		browser,
+		auth: authState,
+		printQRInTerminal,
+		defaultQueryTimeoutMs,
+		transactionOpts,
+		qrTimeout,
+		makeSignalRepository,
+	} = config
+
+	config.mobile = config.mobile || config.auth.creds.registered
+	const ws = new MobileSocket(config)
+	ws.setMaxListeners?.(0)
+
+	// if not mobile or already registered -> auto connect
+	if(!config.mobile || config.auth.creds.registered) {
+		ws.connect()
+	}
+
 	const ev = makeEventBuffer(logger)
 	/** ephemeral key pair used to encrypt/decrypt communication. Unique for each connection */
 	const ephemeralKeyPair = Curve.generateKeyPair()
 	/** WA noise protocol wrapper */
-	const noise = makeNoiseHandler(ephemeralKeyPair, logger)
+	const noise = makeNoiseHandler({
+		keyPair: ephemeralKeyPair,
+		NOISE_HEADER: config.mobile ? MOBILE_NOISE_HEADER : NOISE_WA_HEADER,
+		mobile: config.mobile,
+		logger
+	})
 
 	const { creds } = authState
 	// add transaction capability
 	const keys = addTransactionCapability(authState.keys, logger, transactionOpts)
+	const signalRepository = makeSignalRepository({ creds, keys })
 
 	let lastDateRecv: Date
 	let epoch = 1
@@ -60,18 +67,28 @@ export const makeSocket = ({
 	const sendPromise = promisify<void>(ws.send)
 	/** send a raw buffer */
 	const sendRawMessage = async(data: Uint8Array | Buffer) => {
-		if(ws.readyState !== ws.OPEN) {
+		if(!ws.isOpen) {
 			throw new Boom('Connection Closed', { statusCode: DisconnectReason.connectionClosed })
 		}
 
 		const bytes = noise.encodeFrame(data)
-        await sendPromise.call(ws, bytes) as Promise<void>
+		await promiseTimeout<void>(
+			connectTimeoutMs,
+			async(resolve, reject) => {
+				try {
+					await sendPromise.call(ws, bytes)
+					resolve()
+				} catch(error) {
+					reject(error)
+				}
+			}
+		)
 	}
 
 	/** send a binary node */
 	const sendNode = (frame: BinaryNode) => {
 		if(logger.level === 'trace') {
-			logger.trace({ msgId: frame.attrs.id, fromMe: true, frame }, 'communication')
+			logger.trace(binaryNodeToString(frame), 'xml send')
 		}
 
 		const buff = encodeBinaryNode(frame)
@@ -79,25 +96,27 @@ export const makeSocket = ({
 	}
 
 	/** log & process any unexpected errors */
-	const onUnexpectedError = (error: Error, msg: string) => {
+	const onUnexpectedError = (err: Error | Boom, msg: string) => {
 		logger.error(
-			{ trace: error.stack, output: (error as any).output },
+			{ err },
 			`unexpected error in '${msg}'`
 		)
 	}
 
 	/** await the next incoming message */
-	const awaitNextMessage = async(sendMsg?: Uint8Array) => {
-		if(ws.readyState !== ws.OPEN) {
-			throw new Boom('Connection Closed', { statusCode: DisconnectReason.connectionClosed })
+	const awaitNextMessage = async<T>(sendMsg?: Uint8Array) => {
+		if(!ws.isOpen) {
+			throw new Boom('Connection Closed', {
+				statusCode: DisconnectReason.connectionClosed
+			})
 		}
 
-		let onOpen: (data: any) => void
+		let onOpen: (data: T) => void
 		let onClose: (err: Error) => void
 
-		const result = promiseTimeout<any>(connectTimeoutMs, (resolve, reject) => {
-			onOpen = (data: any) => resolve(data)
-			onClose = reject
+		const result = promiseTimeout<T>(connectTimeoutMs, (resolve, reject) => {
+			onOpen = resolve
+			onClose = mapWebSocketError(reject)
 			ws.on('frame', onOpen)
 			ws.on('close', onClose)
 			ws.on('error', onClose)
@@ -121,11 +140,11 @@ export const makeSocket = ({
      * @param json query that was sent
      * @param timeoutMs timeout after which the promise will reject
      */
-	 const waitForMessage = async(msgId: string, timeoutMs = defaultQueryTimeoutMs) => {
+	 const waitForMessage = async<T>(msgId: string, timeoutMs = defaultQueryTimeoutMs) => {
 		let onRecv: (json) => void
 		let onErr: (err) => void
 		try {
-			const result = await promiseTimeout(timeoutMs,
+			const result = await promiseTimeout<T>(timeoutMs,
 				(resolve, reject) => {
 					onRecv = resolve
 					onErr = err => {
@@ -137,7 +156,7 @@ export const makeSocket = ({
 					ws.off('error', onErr)
 				},
 			)
-			return result as any
+			return result
 		} finally {
 			ws.off(`TAG:${msgId}`, onRecv!)
 			ws.off('close', onErr!) // if the socket closes, you'll never receive the message
@@ -171,21 +190,21 @@ export const makeSocket = ({
 		}
 		helloMsg = proto.HandshakeMessage.fromObject(helloMsg)
 
-		logger.info({ browser, helloMsg }, 'connected to WA Web')
+		logger.info({ browser, helloMsg }, 'connected to WA')
 
 		const init = proto.HandshakeMessage.encode(helloMsg).finish()
 
-		const result = await awaitNextMessage(init)
+		const result = await awaitNextMessage<Uint8Array>(init)
 		const handshake = proto.HandshakeMessage.decode(result)
 
-		logger.trace({ handshake }, 'handshake recv from WA Web')
+		logger.trace({ handshake }, 'handshake recv from WA')
 
 		const keyEnc = noise.processHandshake(handshake, creds.noiseKey)
 
-		const config = { version, browser, syncFullHistory }
-
 		let node: proto.IClientPayload
-		if(!creds.me) {
+		if(config.mobile) {
+			node = generateMobileNode(config)
+		} else if(!creds.me) {
 			node = generateRegistrationNode(creds, config)
 			logger.info({ node }, 'not logged in, attempting registration...')
 		} else {
@@ -261,7 +280,7 @@ export const makeSocket = ({
 				const msgId = frame.attrs.id
 
 				if(logger.level === 'trace') {
-					logger.trace({ msgId, fromMe: false, frame }, 'communication')
+					logger.trace(binaryNodeToString(frame), 'recv xml')
 				}
 
 				/* Check if this is a response to a message we sent */
@@ -306,7 +325,7 @@ export const makeSocket = ({
 		ws.removeAllListeners('open')
 		ws.removeAllListeners('message')
 
-		if(ws.readyState !== ws.CLOSED && ws.readyState !== ws.CLOSING) {
+		if(!ws.isClosed && !ws.isClosing) {
 			try {
 				ws.close()
 			} catch{ }
@@ -323,11 +342,11 @@ export const makeSocket = ({
 	}
 
 	const waitForSocketOpen = async() => {
-		if(ws.readyState === ws.OPEN) {
+		if(ws.isOpen) {
 			return
 		}
 
-		if(ws.readyState === ws.CLOSED || ws.readyState === ws.CLOSING) {
+		if(ws.isClosed || ws.isClosing) {
 			throw new Boom('Connection Closed', { statusCode: DisconnectReason.connectionClosed })
 		}
 
@@ -335,7 +354,7 @@ export const makeSocket = ({
 		let onClose: (err: Error) => void
 		await new Promise((resolve, reject) => {
 			onOpen = () => resolve(undefined)
-			onClose = reject
+			onClose = mapWebSocketError(reject)
 			ws.on('open', onOpen)
 			ws.on('close', onClose)
 			ws.on('error', onClose)
@@ -360,7 +379,7 @@ export const makeSocket = ({
             */
 			if(diff > keepAliveIntervalMs + 5000) {
 				end(new Boom('Connection was lost', { statusCode: DisconnectReason.connectionLost }))
-			} else if(ws.readyState === ws.OPEN) {
+			} else if(ws.isOpen) {
 				// if its all good, send a keep alive request
 				query(
 					{
@@ -433,12 +452,7 @@ export const makeSocket = ({
 			end(err)
 		}
 	})
-	ws.on('error', error => end(
-		new Boom(
-			`WebSocket Error (${error.message})`,
-			{ statusCode: getCodeFromWSError(error), data: error }
-		)
-	))
+	ws.on('error', mapWebSocketError(end))
 	ws.on('close', () => end(new Boom('Connection Terminated', { statusCode: DisconnectReason.connectionClosed })))
 	// the server terminated the connection
 	ws.on('CB:xmlstreamend', () => end(new Boom('Connection Terminated by Server', { statusCode: DisconnectReason.connectionClosed })))
@@ -462,7 +476,7 @@ export const makeSocket = ({
 
 		let qrMs = qrTimeout || 60_000 // time to let a QR live
 		const genPairQR = () => {
-			if(ws.readyState !== ws.OPEN) {
+			if(!ws.isOpen) {
 				return
 			}
 
@@ -585,6 +599,7 @@ export const makeSocket = ({
 		ws,
 		ev,
 		authState: { creds, keys },
+		signalRepository,
 		get user() {
 			return authState.creds.me
 		},
@@ -601,6 +616,21 @@ export const makeSocket = ({
 		uploadPreKeysToServerIfRequired,
 		/** Waits for the connection to WA to reach a state */
 		waitForConnectionUpdate: bindWaitForConnectionUpdate(ev),
+	}
+}
+
+/**
+ * map the websocket error to the right type
+ * so it can be retried by the caller
+ * */
+function mapWebSocketError(handler: (err: Error) => void) {
+	return (error: Error) => {
+		handler(
+			new Boom(
+				`WebSocket Error (${error?.message})`,
+				{ statusCode: getCodeFromWSError(error), data: error }
+			)
+		)
 	}
 }
 

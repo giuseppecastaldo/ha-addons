@@ -41,6 +41,13 @@ export const BufferJSON = {
 	}
 }
 
+export const getKeyAuthor = (
+	key: proto.IMessageKey | undefined | null,
+	meId: string = 'me'
+) => (
+	(key?.fromMe ? meId : key?.participant || key?.remoteJid) || ''
+)
+
 export const writeRandomPadMax16 = (msg: Uint8Array) => {
 	const pad = randomBytes(1)
 	pad[0] &= 0xf
@@ -136,15 +143,15 @@ export const delayCancellable = (ms: number) => {
 	return { delay, cancel }
 }
 
-export async function promiseTimeout<T>(ms: number | undefined, promise: (resolve: (v?: T)=>void, reject: (error) => void) => void) {
+export async function promiseTimeout<T>(ms: number | undefined, promise: (resolve: (v: T) => void, reject: (error) => void) => void) {
 	if(!ms) {
-		return new Promise (promise)
+		return new Promise(promise)
 	}
 
 	const stack = new Error().stack
 	// Create a promise that rejects in <ms> milliseconds
 	const { delay, cancel } = delayCancellable (ms)
-	const p = new Promise ((resolve, reject) => {
+	const p = new Promise((resolve, reject) => {
 		delay
 			.then(() => reject(
 				new Boom('Timed Out', {
@@ -170,7 +177,7 @@ export function bindWaitForEvent<T extends keyof BaileysEventMap>(ev: BaileysEve
 		let listener: (item: BaileysEventMap[T]) => void
 		let closeListener: any
 		await (
-			promiseTimeout(
+			promiseTimeout<void>(
 				timeoutMs,
 				(resolve, reject) => {
 					closeListener = ({ connection, lastDisconnect }) => {
@@ -219,7 +226,7 @@ export const printQRIfNecessaryListener = (ev: BaileysEventEmitter, logger: Logg
  * Use to ensure your WA connection is always on the latest version
  */
 export const fetchLatestBaileysVersion = async(options: AxiosRequestConfig<any> = { }) => {
-	const URL = 'https://raw.githubusercontent.com/adiwajshing/Baileys/master/src/Defaults/baileys-version.json'
+	const URL = 'https://raw.githubusercontent.com/WhiskeySockets/Baileys/master/src/Defaults/baileys-version.json'
 	try {
 		const result = await axios.get<{ version: WAVersion }>(
 			URL,
@@ -348,12 +355,15 @@ const UNEXPECTED_SERVER_CODE_TEXT = 'Unexpected server response: '
 
 export const getCodeFromWSError = (error: Error) => {
 	let statusCode = 500
-	if(error.message.includes(UNEXPECTED_SERVER_CODE_TEXT)) {
-		const code = +error.message.slice(UNEXPECTED_SERVER_CODE_TEXT.length)
+	if(error?.message?.includes(UNEXPECTED_SERVER_CODE_TEXT)) {
+		const code = +error?.message.slice(UNEXPECTED_SERVER_CODE_TEXT.length)
 		if(!Number.isNaN(code) && code >= 400) {
 			statusCode = code
 		}
-	} else if((error as any).code?.startsWith('E')) { // handle ETIMEOUT, ENOTFOUND etc
+	} else if(
+		(error as any)?.code?.startsWith('E')
+		|| error?.message?.includes('timed out')
+	) { // handle ETIMEOUT, ENOTFOUND etc
 		statusCode = 408
 	}
 

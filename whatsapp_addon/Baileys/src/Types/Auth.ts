@@ -1,9 +1,15 @@
 import type { proto } from '../../WAProto'
+import { RegistrationOptions } from '../Socket/registration'
 import type { Contact } from './Contact'
 import type { MinimalMessage } from './Message'
 
 export type KeyPair = { public: Uint8Array, private: Uint8Array }
-export type SignedKeyPair = { keyPair: KeyPair, signature: Uint8Array, keyId: number }
+export type SignedKeyPair = {
+    keyPair: KeyPair
+    signature: Uint8Array
+    keyId: number
+    timestampS?: number
+}
 
 export type ProtocolAddress = {
 	name: string // jid
@@ -53,12 +59,19 @@ export type AuthenticationCreds = SignalCreds & {
     /** number of times history & app state has been synced */
     accountSyncCounter: number
     accountSettings: AccountSettings
+	// mobile creds
+	deviceId: string
+	phoneId: string
+	identityId: Buffer
+	registered: boolean
+	backupToken: Buffer
+	registration: RegistrationOptions
 }
 
 export type SignalDataTypeMap = {
     'pre-key': KeyPair
-    'session': any
-    'sender-key': any
+    'session': Uint8Array
+    'sender-key': Uint8Array
     'sender-key-memory': { [jid: string]: boolean }
     'app-state-sync-key': proto.Message.IAppStateSyncKeyData
     'app-state-sync-version': LTHashState
@@ -77,7 +90,7 @@ export type SignalKeyStore = {
 
 export type SignalKeyStoreWithTransaction = SignalKeyStore & {
     isInTransaction: () => boolean
-    transaction(exec: () => Promise<void>): Promise<void>
+    transaction<T>(exec: () => Promise<T>): Promise<T>
 }
 
 export type TransactionCapabilityOptions = {
@@ -87,7 +100,7 @@ export type TransactionCapabilityOptions = {
 
 export type SignalAuthState = {
     creds: SignalCreds
-    keys: SignalKeyStore
+    keys: SignalKeyStore | SignalKeyStoreWithTransaction
 }
 
 export type AuthenticationState = {

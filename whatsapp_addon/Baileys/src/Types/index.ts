@@ -8,6 +8,7 @@ export * from './Socket'
 export * from './Events'
 export * from './Product'
 export * from './Call'
+export * from './Signal'
 
 import { AuthenticationState } from './Auth'
 import { SocketConfig } from './Socket'
@@ -52,4 +53,4 @@ export type WABusinessProfile = {
     address?: string
 }
 
-export type CurveKeyPair = { private: Uint8Array; public: Uint8Array }
+export type CurveKeyPair = { private: Uint8Array, public: Uint8Array }
