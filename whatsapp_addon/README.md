@@ -1,3 +1,4 @@
+[![Buy Me a Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/zkfpkdwyhyq)
 # Home Assistant Add-on: Whatsapp add-on
 
 _Write your Whatsapp message from Home Assistant_
