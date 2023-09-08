@@ -1,5 +1,9 @@
 ## 1.3.2
 
+- Added donation button.
+
+## 1.3.2
+
 - Bug fixed.
 
 ## 1.3.0
