@@ -218,7 +218,7 @@ class WhatsappClient extends EventEmitter {
 
         const [result] = await this.#conn.onWhatsApp(id);
 
-        if (result || phone.endsWith('@g.us') || phone.endsWith('@broadcast')) {
+        if (result || phone.endsWith('@s.whatsapp.net') || phone.endsWith('@g.us') || phone.endsWith('@broadcast')) {
             try {
                 return await this.#conn.sendMessage(id, msg, options);
             } catch (err) {
