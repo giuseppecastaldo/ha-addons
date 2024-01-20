@@ -1,3 +1,7 @@
+## 1.3.5
+
+- Revert [(Pull request)](https://github.com/giuseppecastaldo/ha-addons/pull/33)
+
 ## 1.3.4
 
 - Bug fixed [(Pull request)](https://github.com/giuseppecastaldo/ha-addons/pull/33)
