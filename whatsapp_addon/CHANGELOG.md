@@ -1,3 +1,8 @@
+## 1.3.4
+
+- Bug fixed [(Pull request)](https://github.com/giuseppecastaldo/ha-addons/pull/33)
+- Bug fixed [(Pull request)](https://github.com/giuseppecastaldo/ha-addons/pull/55)
+
 ## 1.3.3
 
 - Added donation button.
