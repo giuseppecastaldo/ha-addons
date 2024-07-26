@@ -210,7 +210,7 @@ class WhatsappClient extends EventEmitter {
 
     sendMessage = async (phone, msg, options) => {
         phone = phone.toString()
-        msg = msg.toString()
+
         if (this.#status.disconnected || !this.#status.connected) {
             throw new WhatsappDisconnectedError()
         }
