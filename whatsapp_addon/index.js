@@ -32,7 +32,7 @@ const onReady = (key) => {
       },
     }
   );
-}
+};
 
 const onQr = (qr, key) => {
   logger.info(
@@ -58,7 +58,7 @@ const onQr = (qr, key) => {
       }
     );
   });
-}
+};
 
 const onMsg = (msg, key) => {
   axios.post(
@@ -71,7 +71,7 @@ const onMsg = (msg, key) => {
     }
   );
   logger.debug(`New message event fired from ${key}.`);
-}
+};
 
 const onPresenceUpdate = (presence, key) => {
   axios.post(
@@ -84,25 +84,27 @@ const onPresenceUpdate = (presence, key) => {
     }
   );
   logger.debug(`New presence event fired from ${key}.`);
-}
+};
 
 const onLogout = async (key) => {
   logger.info(`Client ${key} was logged out. Restarting...`);
-  fs.unlinkSync(`/data/${key}.json`);
+  fs.rm(`/data/${key}`, { recursive: true });
 
   init(key);
-}
+};
 
 const init = (key) => {
-  clients[key] = new WhatsappClient({ path: `/data/${key}.json` });
+  clients[key] = new WhatsappClient({ path: `/data/${key}` });
 
-  clients[key].on('restart', () => logger.debug(`${key} client restarting...`))
+  clients[key].on("restart", () => logger.debug(`${key} client restarting...`));
   clients[key].on("qr", (qr) => onQr(qr, key));
   clients[key].once("ready", () => onReady(key));
   clients[key].on("msg", (msg) => onMsg(msg, key));
   clients[key].on("logout", () => onLogout(key));
-  clients[key].on("presence_update", (presence) => onPresenceUpdate(presence, key));
-}
+  clients[key].on("presence_update", (presence) =>
+    onPresenceUpdate(presence, key)
+  );
+};
 
 fs.readFile("data/options.json", function (error, content) {
   var options = JSON.parse(content);
@@ -144,12 +146,15 @@ fs.readFile("data/options.json", function (error, content) {
       if (clients.hasOwnProperty(req.body.clientId)) {
         const wapp = clients[req.body.clientId];
 
-        wapp.updateProfileStatus(status).then(() => {
-          res.send("OK");
-        }).catch((error) => {
-          res.send("KO");
-          logger.error(error.message);
-        });
+        wapp
+          .updateProfileStatus(status)
+          .then(() => {
+            res.send("OK");
+          })
+          .catch((error) => {
+            res.send("KO");
+            logger.error(error.message);
+          });
       } else {
         logger.error("Error in set status. Client ID not found.");
         res.send("KO");
@@ -167,12 +172,15 @@ fs.readFile("data/options.json", function (error, content) {
       if (clients.hasOwnProperty(req.body.clientId)) {
         const wapp = clients[req.body.clientId];
 
-        wapp.presenceSubscribe(request.userId).then(() => {
-          res.send("OK");
-        }).catch((error) => {
-          res.send("KO");
-          logger.error(error.message);
-        });
+        wapp
+          .presenceSubscribe(request.userId)
+          .then(() => {
+            res.send("OK");
+          })
+          .catch((error) => {
+            res.send("KO");
+            logger.error(error.message);
+          });
       } else {
         logger.error("Error in subscribe presence. Client ID not found.");
         res.send("KO");
@@ -190,12 +198,15 @@ fs.readFile("data/options.json", function (error, content) {
       if (clients.hasOwnProperty(req.body.clientId)) {
         const wapp = clients[req.body.clientId];
 
-        wapp.sendPresenceUpdate(request.type, request.to).then(() => {
-          res.send("OK");
-        }).catch((error) => {
-          res.send("KO");
-          logger.error(error.message)
-        });
+        wapp
+          .sendPresenceUpdate(request.type, request.to)
+          .then(() => {
+            res.send("OK");
+          })
+          .catch((error) => {
+            res.send("KO");
+            logger.error(error.message);
+          });
       } else {
         logger.error("Error in presence update. Client ID not found.");
         res.send("KO");
@@ -213,12 +224,15 @@ fs.readFile("data/options.json", function (error, content) {
       if (clients.hasOwnProperty(req.body.clientId)) {
         const wapp = clients[req.body.clientId];
 
-        wapp.setSendPresenceUpdateInterval(request.type, request.to).then(() => {
-          res.send("OK");
-        }).catch((error) => {
-          res.send("KO");
-          logger.error(error.message)
-        });
+        wapp
+          .setSendPresenceUpdateInterval(request.type, request.to)
+          .then(() => {
+            res.send("OK");
+          })
+          .catch((error) => {
+            res.send("KO");
+            logger.error(error.message);
+          });
       } else {
         logger.error("Error in presence update. Client ID not found.");
         res.send("KO");

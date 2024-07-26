@@ -1,3 +1,9 @@
+## 1.4.0
+
+- Updated whatsapp library
+- Changed session saving method
+- Special functions such as sending buttons, sending lists, etc., are no longer available.
+
 ## 1.3.5
 
 - Revert [(Pull request)](https://github.com/giuseppecastaldo/ha-addons/pull/33)
