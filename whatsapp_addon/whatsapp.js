@@ -4,7 +4,7 @@ const makeWASocket = require("./Baileys").default;
 const {
   DisconnectReason,
   useMultiFileAuthState,
-  fetchLatestWaWebVersion,
+  fetchLatestBaileysVersion,
 } = require("./Baileys");
 
 const MessageType = {
@@ -55,7 +55,7 @@ class WhatsappClient extends EventEmitter {
   connect = async () => {
     if (this.#status.connected) return;
 
-    const { version, isLatest } = await fetchLatestWaWebVersion();
+    const { version } = await fetchLatestBaileysVersion();
     const { state, saveCreds } = await useMultiFileAuthState(this.#path);
 
     this.#conn = makeWASocket({
@@ -63,8 +63,9 @@ class WhatsappClient extends EventEmitter {
       auth: state,
       syncFullHistory: false,
       markOnlineOnConnect: !this.#offline,
-      browser: ["Home Assistant", "Whatsapp addon", "1.4.0"],
       logger: require("pino")({ level: "silent" }),
+      generateHighQualityLinkPreview: true,
+      browser: ["Ubuntu", "Chrome", "20.0.04"],
       defaultQueryTimeoutMs: undefined,
     });
 
@@ -163,14 +164,6 @@ class WhatsappClient extends EventEmitter {
     this.setSendPresenceUpdateInterval();
 
     const statusCode = lastDisconnect?.error?.output?.statusCode;
-
-    if (statusCode === DisconnectReason.restartRequired) {
-      this.waitFor("ready").then(() => {
-        setTimeout(() => {
-          this.restart();
-        }, 5000);
-      });
-    }
 
     if (statusCode === DisconnectReason.loggedOut) {
       this.#status.reconnecting = false;
