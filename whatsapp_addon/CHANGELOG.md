@@ -1,3 +1,7 @@
+## 1.4.1
+
+- Bug QR-Code fixed
+
 ## 1.4.0
 
 - Updated whatsapp library
