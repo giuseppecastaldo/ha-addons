@@ -1,6 +1,7 @@
 ## 1.5.0
 
 - Updated whatsapp library
+- Updated docker base image
 
 ## 1.4.1
 
