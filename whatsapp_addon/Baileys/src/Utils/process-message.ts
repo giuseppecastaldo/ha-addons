@@ -223,7 +223,8 @@ const processMessage = async(
 					isLatest:
 						histNotification.syncType !== proto.HistorySync.HistorySyncType.ON_DEMAND
 							? isLatest
-							: undefined
+							: undefined,
+					peerDataRequestSessionId: histNotification.peerDataRequestSessionId
 				})
 			}
 
@@ -282,6 +283,7 @@ const processMessage = async(
 				const { peerDataOperationResult } = response
 				for(const result of peerDataOperationResult!) {
 					const { placeholderMessageResendResponse: retryResponse } = result
+					//eslint-disable-next-line max-depth
 					if(retryResponse) {
 						const webMessageInfo = proto.WebMessageInfo.decode(retryResponse.webMessageInfoBytes!)
 						// wait till another upsert event is available, don't want it to be part of the PDO response message
@@ -296,6 +298,25 @@ const processMessage = async(
 				}
 			}
 
+		case proto.Message.ProtocolMessage.Type.MESSAGE_EDIT:
+			ev.emit(
+				'messages.update',
+				[
+					{
+						key: protocolMsg.key!,
+						update: {
+							message: {
+								editedMessage: {
+									message: protocolMsg.editedMessage
+								}
+							},
+							messageTimestamp: protocolMsg.timestampMs
+								? Math.floor(toNumber(protocolMsg.timestampMs) / 1000)
+								: message.messageTimestamp
+						}
+					}
+				]
+			)
 			break
 		}
 	} else if(content?.reactionMessage) {

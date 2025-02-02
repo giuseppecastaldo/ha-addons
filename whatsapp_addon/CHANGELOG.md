@@ -1,3 +1,7 @@
+## 1.5.0
+
+- Updated whatsapp library
+
 ## 1.4.1
 
 - Bug QR-Code fixed

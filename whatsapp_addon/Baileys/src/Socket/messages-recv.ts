@@ -20,6 +20,8 @@ import {
 	getHistoryMsg,
 	getNextPreKeys,
 	getStatusFromReceiptType, hkdf,
+	MISSING_KEYS_ERROR_TEXT,
+	NACK_REASONS,
 	NO_MESSAGE_FOUND_ERROR_TEXT,
 	unixTimestampSeconds,
 	xmppPreKey,
@@ -89,14 +91,18 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 	let sendActiveReceipts = false
 
-	const sendMessageAck = async({ tag, attrs, content }: BinaryNode) => {
+	const sendMessageAck = async({ tag, attrs, content }: BinaryNode, errorCode?: number) => {
 		const stanza: BinaryNode = {
 			tag: 'ack',
 			attrs: {
 				id: attrs.id,
 				to: attrs.from,
-				class: tag,
+				class: tag
 			}
+		}
+
+		if(!!errorCode) {
+		  stanza.attrs.error = errorCode.toString()
 		}
 
 		if(!!attrs.participant) {
@@ -107,7 +113,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			stanza.attrs.recipient = attrs.recipient
 		}
 
-		if(!!attrs.type && (tag !== 'message' || getBinaryNodeChild({ tag, attrs, content }, 'unavailable'))) {
+		if(!!attrs.type && (tag !== 'message' || getBinaryNodeChild({ tag, attrs, content }, 'unavailable') || errorCode !== 0)) {
 			stanza.attrs.type = attrs.type
 		}
 
@@ -342,7 +348,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 			break
 		case 'membership_approval_mode':
-			const approvalMode: any = getBinaryNodeChild(child, 'group_join')
+			const approvalMode = getBinaryNodeChild(child, 'group_join')
 			if(approvalMode) {
 				msg.messageStubType = WAMessageStubType.GROUP_MEMBERSHIP_JOIN_APPROVAL_MODE
 				msg.messageStubParameters = [ approvalMode.attrs.state ]
@@ -574,8 +580,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 		logger.debug({ participant, sendToAll }, 'forced new session for retry recp')
 
-		for(let i = 0; i < msgs.length;i++) {
-			const msg = msgs[i]
+		for(const [i, msg] of msgs.entries()) {
 			if(msg) {
 				updateSendMessageAgainCount(ids[i], participant)
 				const msgRelayOpts: MessageRelayOptions = { messageId: ids[i] }
@@ -622,67 +627,70 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			ids.push(...items.map(i => i.attrs.id))
 		}
 
-		await Promise.all([
-			processingMutex.mutex(
-				async() => {
-					const status = getStatusFromReceiptType(attrs.type)
-					if(
-						typeof status !== 'undefined' &&
-						(
-							// basically, we only want to know when a message from us has been delivered to/read by the other person
-							// or another device of ours has read some messages
-							status > proto.WebMessageInfo.Status.DELIVERY_ACK ||
-							!isNodeFromMe
-						)
-					) {
-						if(isJidGroup(remoteJid) || isJidStatusBroadcast(remoteJid)) {
-							if(attrs.participant) {
-								const updateKey: keyof MessageUserReceipt = status === proto.WebMessageInfo.Status.DELIVERY_ACK ? 'receiptTimestamp' : 'readTimestamp'
+		try {
+			await Promise.all([
+				processingMutex.mutex(
+					async() => {
+						const status = getStatusFromReceiptType(attrs.type)
+						if(
+							typeof status !== 'undefined' &&
+							(
+								// basically, we only want to know when a message from us has been delivered to/read by the other person
+								// or another device of ours has read some messages
+								status > proto.WebMessageInfo.Status.DELIVERY_ACK ||
+								!isNodeFromMe
+							)
+						) {
+							if(isJidGroup(remoteJid) || isJidStatusBroadcast(remoteJid)) {
+								if(attrs.participant) {
+									const updateKey: keyof MessageUserReceipt = status === proto.WebMessageInfo.Status.DELIVERY_ACK ? 'receiptTimestamp' : 'readTimestamp'
+									ev.emit(
+										'message-receipt.update',
+										ids.map(id => ({
+											key: { ...key, id },
+											receipt: {
+												userJid: jidNormalizedUser(attrs.participant),
+												[updateKey]: +attrs.t
+											}
+										}))
+									)
+								}
+							} else {
 								ev.emit(
-									'message-receipt.update',
+									'messages.update',
 									ids.map(id => ({
 										key: { ...key, id },
-										receipt: {
-											userJid: jidNormalizedUser(attrs.participant),
-											[updateKey]: +attrs.t
-										}
+										update: { status }
 									}))
 								)
 							}
-						} else {
-							ev.emit(
-								'messages.update',
-								ids.map(id => ({
-									key: { ...key, id },
-									update: { status }
-								}))
-							)
 						}
-					}
 
-					if(attrs.type === 'retry') {
-						// correctly set who is asking for the retry
-						key.participant = key.participant || attrs.from
-						const retryNode = getBinaryNodeChild(node, 'retry')
-						if(willSendMessageAgain(ids[0], key.participant)) {
-							if(key.fromMe) {
-								try {
-									logger.debug({ attrs, key }, 'recv retry request')
-									await sendMessagesAgain(key, ids, retryNode!)
-								} catch(error) {
-									logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
+						if(attrs.type === 'retry') {
+							// correctly set who is asking for the retry
+							key.participant = key.participant || attrs.from
+							const retryNode = getBinaryNodeChild(node, 'retry')
+							if(willSendMessageAgain(ids[0], key.participant)) {
+								if(key.fromMe) {
+									try {
+										logger.debug({ attrs, key }, 'recv retry request')
+										await sendMessagesAgain(key, ids, retryNode!)
+									} catch(error) {
+										logger.error({ key, ids, trace: error.stack }, 'error in sending message again')
+									}
+								} else {
+									logger.info({ attrs, key }, 'recv retry for not fromMe message')
 								}
 							} else {
-								logger.info({ attrs, key }, 'recv retry for not fromMe message')
+								logger.info({ attrs, key }, 'will not send message again, as sent too many times')
 							}
-						} else {
-							logger.info({ attrs, key }, 'will not send message again, as sent too many times')
 						}
 					}
-				}
-			),
-			sendMessageAck(node)
-		])
+				)
+			])
+		} finally {
+			await sendMessageAck(node)
+		}
 	}
 
 	const handleNotification = async(node: BinaryNode) => {
@@ -693,29 +701,32 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			return
 		}
 
-		await Promise.all([
-			processingMutex.mutex(
-				async() => {
-					const msg = await processNotification(node)
-					if(msg) {
-						const fromMe = areJidsSameUser(node.attrs.participant || remoteJid, authState.creds.me!.id)
-						msg.key = {
-							remoteJid,
-							fromMe,
-							participant: node.attrs.participant,
-							id: node.attrs.id,
-							...(msg.key || {})
-						}
-						msg.participant ??= node.attrs.participant
-						msg.messageTimestamp = +node.attrs.t
+		try {
+			await Promise.all([
+				processingMutex.mutex(
+					async() => {
+						const msg = await processNotification(node)
+						if(msg) {
+							const fromMe = areJidsSameUser(node.attrs.participant || remoteJid, authState.creds.me!.id)
+							msg.key = {
+								remoteJid,
+								fromMe,
+								participant: node.attrs.participant,
+								id: node.attrs.id,
+								...(msg.key || {})
+							}
+							msg.participant ??= node.attrs.participant
+							msg.messageTimestamp = +node.attrs.t
 
-						const fullMsg = proto.WebMessageInfo.fromObject(msg)
-						await upsertMessage(fullMsg, 'append')
+							const fullMsg = proto.WebMessageInfo.fromObject(msg)
+							await upsertMessage(fullMsg, 'append')
+						}
 					}
-				}
-			),
-			sendMessageAck(node)
-		])
+				)
+			])
+		} finally {
+			await sendMessageAck(node)
+		}
 	}
 
 	const handleMessage = async(node: BinaryNode) => {
@@ -755,68 +766,75 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 			msg.messageStubParameters = [NO_MESSAGE_FOUND_ERROR_TEXT, response]
 		}
 
-		if(msg.message?.protocolMessage?.type === proto.Message.ProtocolMessage.Type.SHARE_PHONE_NUMBER) {
-			if(node.attrs.sender_pn) {
-				ev.emit('chats.phoneNumberShare', { lid: node.attrs.from, jid: node.attrs.sender_pn })
-			}
+		if(msg.message?.protocolMessage?.type === proto.Message.ProtocolMessage.Type.SHARE_PHONE_NUMBER && node.attrs.sender_pn) {
+			ev.emit('chats.phoneNumberShare', { lid: node.attrs.from, jid: node.attrs.sender_pn })
 		}
 
-		await Promise.all([
-			processingMutex.mutex(
-				async() => {
-					await decrypt()
-					// message failed to decrypt
-					if(msg.messageStubType === proto.WebMessageInfo.StubType.CIPHERTEXT) {
-						retryMutex.mutex(
-							async() => {
-								if(ws.isOpen) {
-									if(getBinaryNodeChild(node, 'unavailable')) {
-										return
-									}
+		try {
+			await Promise.all([
+				processingMutex.mutex(
+					async() => {
+						await decrypt()
+						// message failed to decrypt
+						if(msg.messageStubType === proto.WebMessageInfo.StubType.CIPHERTEXT) {
+						  if(msg?.messageStubParameters?.[0] === MISSING_KEYS_ERROR_TEXT) {
+								return sendMessageAck(node, NACK_REASONS.ParsingError)
+							}
 
-									const encNode = getBinaryNodeChild(node, 'enc')
-									await sendRetryRequest(node, !encNode)
-									if(retryRequestDelayMs) {
-										await delay(retryRequestDelayMs)
+							retryMutex.mutex(
+								async() => {
+									if(ws.isOpen) {
+										if(getBinaryNodeChild(node, 'unavailable')) {
+											return
+										}
+
+										const encNode = getBinaryNodeChild(node, 'enc')
+										await sendRetryRequest(node, !encNode)
+										if(retryRequestDelayMs) {
+											await delay(retryRequestDelayMs)
+										}
+									} else {
+										logger.debug({ node }, 'connection closed, ignoring retry req')
 									}
-								} else {
-									logger.debug({ node }, 'connection closed, ignoring retry req')
 								}
+							)
+						} else {
+							// no type in the receipt => message delivered
+							let type: MessageReceiptType = undefined
+							let participant = msg.key.participant
+							if(category === 'peer') { // special peer message
+								type = 'peer_msg'
+							} else if(msg.key.fromMe) { // message was sent by us from a different device
+								type = 'sender'
+								// need to specially handle this case
+								if(isJidUser(msg.key.remoteJid!)) {
+									participant = author
+								}
+							} else if(!sendActiveReceipts) {
+								type = 'inactive'
 							}
-						)
-					} else {
-						// no type in the receipt => message delivered
-						let type: MessageReceiptType = undefined
-						let participant = msg.key.participant
-						if(category === 'peer') { // special peer message
-							type = 'peer_msg'
-						} else if(msg.key.fromMe) { // message was sent by us from a different device
-							type = 'sender'
-							// need to specially handle this case
-							if(isJidUser(msg.key.remoteJid!)) {
-								participant = author
+
+							await sendReceipt(msg.key.remoteJid!, participant!, [msg.key.id!], type)
+
+							// send ack for history message
+							const isAnyHistoryMsg = getHistoryMsg(msg.message!)
+							if(isAnyHistoryMsg) {
+								const jid = jidNormalizedUser(msg.key.remoteJid!)
+								await sendReceipt(jid, undefined, [msg.key.id!], 'hist_sync')
 							}
-						} else if(!sendActiveReceipts) {
-							type = 'inactive'
 						}
 
-						await sendReceipt(msg.key.remoteJid!, participant!, [msg.key.id!], type)
+						cleanMessage(msg, authState.creds.me!.id)
 
-						// send ack for history message
-						const isAnyHistoryMsg = getHistoryMsg(msg.message!)
-						if(isAnyHistoryMsg) {
-							const jid = jidNormalizedUser(msg.key.remoteJid!)
-							await sendReceipt(jid, undefined, [msg.key.id!], 'hist_sync')
-						}
+						await sendMessageAck(node)
+
+						await upsertMessage(msg, node.attrs.offline ? 'append' : 'notify')
 					}
-
-					cleanMessage(msg, authState.creds.me!.id)
-
-					await upsertMessage(msg, node.attrs.offline ? 'append' : 'notify')
-				}
-			),
-			sendMessageAck(node)
-		])
+				)
+			])
+		} catch(error) {
+			logger.error({ error, node }, 'error in handling message')
+		}
 	}
 
 	const fetchMessageHistory = async(
@@ -842,7 +860,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		return sendPeerDataOperationMessage(pdoMessage)
 	}
 
-	const requestPlaceholderResend = async(messageKey: WAMessageKey): Promise<'RESOLVED'| string | undefined> => {
+	const requestPlaceholderResend = async(messageKey: WAMessageKey): Promise<string | undefined> => {
 		if(!authState.creds.me?.id) {
 			throw new Boom('Not authenticated')
 		}
@@ -909,7 +927,7 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 		}
 
 		// delete data once call has ended
-		if(status === 'reject' || status === 'accept' || status === 'timeout') {
+		if(status === 'reject' || status === 'accept' || status === 'timeout' || status === 'terminate') {
 			callOfferCache.del(call.id)
 		}
 
@@ -920,18 +938,20 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 
 	const handleBadAck = async({ attrs }: BinaryNode) => {
 		const key: WAMessageKey = { remoteJid: attrs.from, fromMe: true, id: attrs.id }
-		// current hypothesis is that if pash is sent in the ack
-		// it means -- the message hasn't reached all devices yet
-		// we'll retry sending the message here
-		if(attrs.phash) {
-			logger.info({ attrs }, 'received phash in ack, resending message...')
-			const msg = await getMessage(key)
-			if(msg) {
-				await relayMessage(key.remoteJid!, msg, { messageId: key.id!, useUserDevicesCache: false })
-			} else {
-				logger.warn({ attrs }, 'could not send message again, as it was not found')
-			}
-		}
+
+		// WARNING: REFRAIN FROM ENABLING THIS FOR NOW. IT WILL CAUSE A LOOP
+		// // current hypothesis is that if pash is sent in the ack
+		// // it means -- the message hasn't reached all devices yet
+		// // we'll retry sending the message here
+		// if(attrs.phash) {
+		// 	logger.info({ attrs }, 'received phash in ack, resending message...')
+		// 	const msg = await getMessage(key)
+		// 	if(msg) {
+		// 		await relayMessage(key.remoteJid!, msg, { messageId: key.id!, useUserDevicesCache: false })
+		// 	} else {
+		// 		logger.warn({ attrs }, 'could not send message again, as it was not found')
+		// 	}
+		// }
 
 		// error in acknowledgement,
 		// device could not display the message
@@ -959,35 +979,98 @@ export const makeMessagesRecvSocket = (config: SocketConfig) => {
 	const processNodeWithBuffer = async<T>(
 		node: BinaryNode,
 		identifier: string,
-		exec: (node: BinaryNode) => Promise<T>
+		exec: (node: BinaryNode, offline: boolean) => Promise<T>
 	) => {
 		ev.buffer()
 		await execTask()
 		ev.flush()
 
 		function execTask() {
-			return exec(node)
+			return exec(node, false)
 				.catch(err => onUnexpectedError(err, identifier))
+		}
+	}
+
+	type MessageType = 'message' | 'call' | 'receipt' | 'notification'
+
+	type OfflineNode = {
+		type: MessageType
+		node: BinaryNode
+	}
+
+	const makeOfflineNodeProcessor = () => {
+		const nodeProcessorMap: Map<MessageType, (node: BinaryNode) => Promise<void>> = new Map([
+			['message', handleMessage],
+			['call', handleCall],
+			['receipt', handleReceipt],
+			['notification', handleNotification]
+		])
+		const nodes: OfflineNode[] = []
+		let isProcessing = false
+
+		const enqueue = (type: MessageType, node: BinaryNode) => {
+			nodes.push({ type, node })
+
+			if(isProcessing) {
+				return
+			}
+
+			isProcessing = true
+
+			const promise = async() => {
+				while(nodes.length && ws.isOpen) {
+					const { type, node } = nodes.shift()!
+
+					const nodeProcessor = nodeProcessorMap.get(type)
+
+					if(!nodeProcessor) {
+						onUnexpectedError(
+							new Error(`unknown offline node type: ${type}`),
+							'processing offline node'
+						)
+						continue
+					}
+
+					await nodeProcessor(node)
+				}
+
+				isProcessing = false
+			}
+
+			promise().catch(error => onUnexpectedError(error, 'processing offline nodes'))
+		}
+
+		return { enqueue }
+	}
+
+	const offlineNodeProcessor = makeOfflineNodeProcessor()
+
+	const processNode = (type: MessageType, node: BinaryNode, identifier: string, exec: (node: BinaryNode) => Promise<void>) => {
+		const isOffline = !!node.attrs.offline
+
+		if(isOffline) {
+			offlineNodeProcessor.enqueue(type, node)
+		} else {
+			processNodeWithBuffer(node, identifier, exec)
 		}
 	}
 
 	// recv a message
 	ws.on('CB:message', (node: BinaryNode) => {
-		processNodeWithBuffer(node, 'processing message', handleMessage)
+		processNode('message', node, 'processing message', handleMessage)
 	})
 
 	ws.on('CB:call', async(node: BinaryNode) => {
-		processNodeWithBuffer(node, 'handling call', handleCall)
+		processNode('call', node, 'handling call', handleCall)
 	})
 
 	ws.on('CB:receipt', node => {
-		processNodeWithBuffer(node, 'handling receipt', handleReceipt)
+		processNode('receipt', node, 'handling receipt', handleReceipt)
 	})
 
 	ws.on('CB:notification', async(node: BinaryNode) => {
-		processNodeWithBuffer(node, 'handling notification', handleNotification)
+		processNode('notification', node, 'handling notification', handleNotification)
 	})
-
 	ws.on('CB:ack,class:message', (node: BinaryNode) => {
 		handleBadAck(node)
 			.catch(error => onUnexpectedError(error, 'handling bad ack'))
