@@ -19,6 +19,7 @@ const MessageType = {
 
 class WhatsappClient extends EventEmitter {
   #conn;
+  #msgStore = new Map();
   #path;
   #refreshInterval;
   #sendPresenceUpdateInterval;
@@ -67,6 +68,7 @@ class WhatsappClient extends EventEmitter {
       generateHighQualityLinkPreview: true,
       browser: ["Ubuntu", "Chrome", "20.0.04"],
       defaultQueryTimeoutMs: undefined,
+      getMessage: async (key) => this.#msgStore.get(key.id),
     });
 
     this.#conn.ev.on("creds.update", (state) => {
@@ -214,7 +216,13 @@ class WhatsappClient extends EventEmitter {
       phone.endsWith("@broadcast")
     ) {
       try {
-        return await this.#conn.sendMessage(id, msg, options);
+        const result = await this.#conn.sendMessage(id, msg, options);
+        if (result?.key?.id && result.message) {
+          this.#msgStore.set(result.key.id, result.message);
+          if (this.#msgStore.size > 500)
+            this.#msgStore.delete(this.#msgStore.keys().next().value);
+        }
+        return result;
       } catch (err) {
         throw new WhatsappError(err.output.payload.statusCode);
       }
