@@ -1,7 +1,10 @@
 const EventEmitter = require("eventemitter2");
+const { SentMessageStore } = require("./sent-message-store.cjs");
 
 const makeWASocket = require("./Baileys").default;
 const {
+  proto,
+  jidNormalizedUser,
   DisconnectReason,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
@@ -20,6 +23,8 @@ const MessageType = {
 class WhatsappClient extends EventEmitter {
   #conn;
   #path;
+  #retryStore;
+  #ownIdentity = {};
   #refreshInterval;
   #sendPresenceUpdateInterval;
   #timeout;
@@ -45,6 +50,12 @@ class WhatsappClient extends EventEmitter {
   }) {
     super();
     this.#path = path;
+    this.#retryStore = new SentMessageStore({
+      directory: `${path}/retry-cache`,
+      encode: (message) => proto.Message.encode(message).finish(),
+      decode: (bytes) => proto.Message.decode(bytes),
+      normalizeJid: (jid) => this.#normalizeRetryJid(jid),
+    });
     this.#timeout = timeout;
     this.#attempts = attempts;
     this.#offline = offline;
@@ -52,15 +63,31 @@ class WhatsappClient extends EventEmitter {
     this.connect();
   }
 
+  // A self-chat retry may use our LID although the send used our phone JID.
+  // Only map the identity pair supplied by this account's credentials.
+  #normalizeRetryJid = (jid) => {
+    const normalized = jidNormalizedUser(jid);
+    const primary = this.#ownIdentity.id
+      ? jidNormalizedUser(this.#ownIdentity.id)
+      : "";
+    const lid = this.#ownIdentity.lid
+      ? jidNormalizedUser(this.#ownIdentity.lid)
+      : "";
+    if (primary && lid && normalized === lid) return primary;
+    return normalized;
+  };
+
   connect = async () => {
     if (this.#status.connected) return;
 
     const { version } = await fetchLatestBaileysVersion();
     const { state, saveCreds } = await useMultiFileAuthState(this.#path);
+    this.#ownIdentity = { id: state.creds?.me?.id, lid: state.creds?.me?.lid };
 
     this.#conn = makeWASocket({
       version,
       auth: state,
+      getMessage: (key) => this.#retryStore.getMessage(key),
       syncFullHistory: false,
       markOnlineOnConnect: !this.#offline,
       logger: require("pino")({ level: "silent" }),
@@ -71,6 +98,10 @@ class WhatsappClient extends EventEmitter {
 
     this.#conn.ev.on("creds.update", (state) => {
       if (state.me) {
+        this.#ownIdentity = {
+          id: state.me.id || this.#ownIdentity.id,
+          lid: state.me.lid || this.#ownIdentity.lid,
+        };
         this.emit("pair", {
           phone: state.me.id.split(":")[0],
           name: state.me.name,
@@ -90,6 +121,7 @@ class WhatsappClient extends EventEmitter {
     this.#status.disconnected = !reconnect;
     this.#status.reconnecting = !!reconnect;
 
+    if (!reconnect) this.#retryStore.close();
     return this.#conn.end();
   };
 
@@ -115,6 +147,7 @@ class WhatsappClient extends EventEmitter {
     if (this.#status.attempt++ > this.#attempts || this.#status.disconnected) {
       this.#status.reconnecting = false;
       this.#status.disconnected = true;
+      this.#retryStore.close();
       return;
     }
 
@@ -166,6 +199,7 @@ class WhatsappClient extends EventEmitter {
     const statusCode = lastDisconnect?.error?.output?.statusCode;
 
     if (statusCode === DisconnectReason.loggedOut) {
+      this.#retryStore.close();
       this.#status.reconnecting = false;
       this.#status.disconnected = true;
 
@@ -214,7 +248,9 @@ class WhatsappClient extends EventEmitter {
       phone.endsWith("@broadcast")
     ) {
       try {
-        return await this.#conn.sendMessage(id, msg, options);
+        const sent = await this.#conn.sendMessage(id, msg, options);
+        this.#retryStore.remember(sent?.key, sent?.message);
+        return sent;
       } catch (err) {
         throw new WhatsappError(err.output.payload.statusCode);
       }

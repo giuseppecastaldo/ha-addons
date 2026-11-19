@@ -1,0 +1,32 @@
+name: WhatsApp retry recovery tests
+
+on:
+  pull_request:
+    paths:
+      - "whatsapp_addon/whatsapp.js"
+      - "whatsapp_addon/sent-message-store.cjs"
+      - "whatsapp_addon/test/**"
+      - "whatsapp_addon/package.json"
+      - ".github/workflows/whatsapp-tests.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "whatsapp_addon/whatsapp.js"
+      - "whatsapp_addon/sent-message-store.cjs"
+      - "whatsapp_addon/test/**"
+      - "whatsapp_addon/package.json"
+      - ".github/workflows/whatsapp-tests.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm test --prefix whatsapp_addon
