@@ -2,6 +2,40 @@
 
 ## How to use
 
+### Message retry recovery
+
+If a linked device cannot decrypt a notification, WhatsApp may ask the add-on to
+send it again. The add-on keeps a small cache of accepted outbound messages so
+Baileys can retry with the original message content. Self-chat retries support
+both the phone address and the LID supplied by the same account's credentials.
+
+Each client has a separate `retry-cache/sent-messages.json` inside its session
+directory. **This file contains private message content encoded as protobuf and
+base64; it is not encrypted.** Do not share it or publish it with diagnostic logs.
+New cache directories and snapshots use permissions 0700 and 0600 respectively.
+
+The cache holds at most 128 messages, 64 KiB per message, and 1 MiB of encoded
+message bytes (at most 2 MiB on disk). Messages expire after 24 hours; reads do not
+extend expiry. Expired entries are removed during use and every five minutes
+while the client is active. After downtime, expiry is checked when the cache is
+loaded. Oldest entries are evicted when a limit is reached.
+
+Accepted sends remain successful if cache storage fails. In-memory recovery is
+still available, but those messages may not survive an add-on restart. Logs report
+rate-limited cache hits, misses, errors, and aggregate sizes without message text
+or account identifiers. An expired, oversized, or uncached message cannot be
+recovered by this cache. The cache does not prevent every encryption-session
+failure or reconstruct notifications sent before it was enabled.
+
+To run the retry-recovery regression tests with Node.js 22 or newer:
+
+```sh
+npm test --prefix whatsapp_addon
+```
+
+The tests use synthetic messages and mocked sockets; they do not connect to
+WhatsApp or require pairing credentials or a dependency installation.
+
 ### **How to add other Whatsapp sessions**
 
 Go to configuration page in clients input box digit the desired clientId. This one represents an identifier for the session.
